@@ -232,6 +232,9 @@ action, adventure, animation, comedy, crime, documentary, drama, family, fantasy
 actionadventure, animation, comedy, crime, documentary, drama, family, kids, mystery, news, reality, scififantasy, soap, talk, warpolitics, western
 
 ## Change Log
+### v1.0.1
+* Make sure only the requests from this plugin are cached, do not affect others keypirinha's plugins.
+
 ### v1.0
 * Released
 
