@@ -3,15 +3,16 @@ import sys
 
 import keypirinha as kp
 import keypirinha_util as kpu
-
 from MovieDB import constants
+
 from .settingsparser import SettingsParser
 from .suggestions.errorsuggestion import ErrorSuggestion
 from .suggestions.textsuggestion import TextSuggestion
 from .userinputparser import UserInputParser
+
 sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 from .suggester import Suggester
-import requests_cache
+
 
 class Moviedb(kp.Plugin):
 
@@ -62,9 +63,7 @@ class Moviedb(kp.Plugin):
         if not items_chain or items_chain[0].category() != kp.ItemCategory.KEYWORD:
             return
 
-        suggestions = []
         selected_chain = items_chain[len(items_chain) - 1]
-        match_type = kp.Match.ANY
 
         if not user_input:
             results, match_type = self.suggester.without_input(selected_chain)
@@ -133,12 +132,7 @@ class Moviedb(kp.Plugin):
     def _read_config(self):
         """Parses the settings when it has been updated by the user."""
         self.settings = SettingsParser(self.load_settings()).parse()
-        self._configure_cache()
-        self.suggester = Suggester(self.settings, self.icons)
-
-    def _configure_cache(self):
-        """Configures the cache (when the items expire)."""
-        requests_cache.install_cache(os.path.join(self.get_package_cache_path(True), 'requests'), backend='filesystem', expire_after=self.settings['cache_expire_after'])
+        self.suggester = Suggester(self.settings, self.icons, self.get_package_cache_path(True))
 
     def _load_icons(self):
         """Loads the icons used in this plugin."""

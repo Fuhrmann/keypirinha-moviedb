@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 
 import json
@@ -8,6 +9,7 @@ import keypirinha_util as kpu
 import tmdbsimple as tmdb
 import omdb
 import re
+import requests_cache
 from MovieDB import constants
 from .suggestions.searchsuggestion import SearchSuggestion
 from .suggestions.mediasuggestion import MediaSuggestion
@@ -15,14 +17,17 @@ from .suggestions.errorsuggestion import ErrorSuggestion
 from .suggestions.suggestion import Suggestion
 from .userinputparser import UserInputParser
 
+
 class Suggester:
     ITEM_CAT_MORE = kp.ItemCategory.USER_BASE + 30
 
-    def __init__(self, settings, icons):
+    def __init__(self, settings, icons, cache_path):
         self.input_parser = UserInputParser()
         self.settings = settings
         self.icons = icons
+        self.cache_path = cache_path
         self.user_input = None
+        self.current_suggestions = None
         self.current_page = 1
         self.total_pages = 1
         self._configure_keys()
@@ -40,7 +45,8 @@ class Suggester:
             suggestions = self.current_suggestions
             match_type = kp.Match.FUZZY
         elif selected_category == kp.ItemCategory.KEYWORD:
-            search_config = self.input_parser.parse(user_input, selected_target['media_type'] if 'media_type' in selected_target else selected_target)
+            search_config = self.input_parser.parse(user_input, selected_target[
+                'media_type'] if 'media_type' in selected_target else selected_target)
 
             # At this point we already know that the selected category is a keyword
             # So what we're doing now is to find out if the current page is not the first one.
@@ -53,13 +59,13 @@ class Suggester:
                 # In this case we know that the user is trying to search for
                 # media using one of the supported query searches: year:2001, genre:action
                 if kp.should_terminate(0.85):
-                    return (None, match_type)
+                    return None, match_type
 
                 suggestions = self._execute_search_preset(search_config)
             else:
                 # And finally, this is the case when we'll search for media matching the entered query by the user
                 if kp.should_terminate(0.55):
-                    return (None, match_type)
+                    return None, match_type
 
                 suggestions = self._search(user_input, selected_target)
 
@@ -75,13 +81,14 @@ class Suggester:
 
         self.current_suggestions = suggestions
 
-        return (self._append_load_more(suggestions), match_type)
+        return self._append_load_more(suggestions), match_type
 
     def without_input(self, selected_chain):
         """Suggest when there is no query"""
         selected_category, selected_target, user_input = self._parse_selections(selected_chain)
         match_type = kp.Match.ANY
 
+        suggestions = []
         if user_input:
             return self.with_input(selected_chain, user_input)
 
@@ -99,7 +106,7 @@ class Suggester:
 
         self.current_suggestions = suggestions
 
-        return (self._append_load_more(suggestions), match_type)
+        return self._append_load_more(suggestions), match_type
 
     def _list_search_presets(self, media_type) -> list:
         """Lists all the defined search presets, if there it is any."""
@@ -176,11 +183,11 @@ class Suggester:
         media_type_class = constants.SUPPORTED_MEDIA_TYPES[media_type]
         search = getattr(tmdb, media_type_class)(tmdb_id)  # self.tmdb.Movie, self.tmdb.TV or self.tmdb.People
 
-        tmdb_data = search.info(append_to_response='videos,external_ids,credits,combined_credits', language=self.settings['language'])
+        tmdb_data = search.info(append_to_response='videos,external_ids,credits,combined_credits',
+                                language=self.settings['language'])
         suggestion = constants.SUGGESTIONS[media_type](tmdb_data)
 
         # Not every movie/tvshow has omdb data
-        omdb_data = None
         imdb_id = suggestion.imdb_id
         if imdb_id:
             # Don't call omdb for people details
@@ -210,6 +217,8 @@ class Suggester:
     def _configure_keys(self):
         """Configures the API services with the keys provided in the settings."""
         tmdb.API_KEY = self.settings['tmdb_api_key']
+        tmdb.SESSION = requests_cache.CachedSession(os.path.join(self.cache_path, 'requests'), backend='filesystem',
+                                                    expire_after=self.settings['cache_expire_after'])
         omdb.set_default('apikey', self.settings['omdb_api_key'])
         omdb.set_default('timeout', 5)
 
@@ -227,7 +236,7 @@ class Suggester:
         selected_category = selected_chain.category()
         selected_target = self._parse_selected_target(selected_chain)
 
-        return (selected_category, selected_target, user_input)
+        return selected_category, selected_target, user_input
 
     def _parse_selected_target(self, selected_chain):
         try:

@@ -46,12 +46,12 @@ class TMDB(object):
 
     def _get_series_id_season_number_path(self, key):
         return self._get_path(key).format(series_id=self.series_id,
-            season_number=self.season_number)
+                                          season_number=self.season_number)
 
     def _get_series_id_season_number_episode_number_path(self, key):
         return self._get_path(key).format(series_id=self.series_id,
-            season_number=self.season_number,
-            episode_number=self.episode_number)
+                                          season_number=self.season_number,
+                                          episode_number=self.episode_number)
 
     def _get_complete_url(self, path):
         return '{base_uri}/{path}'.format(base_uri=self.base_uri, path=path)
@@ -69,10 +69,11 @@ class TMDB(object):
         return params
 
     def _request(self, method, path, params=None, payload=None):
+        from . import SESSION
         url = self._get_complete_url(path)
         params = self._get_params(params)
 
-        response = requests.request(
+        response = SESSION.request(
             method, url, params=params,
             data=json.dumps(payload) if payload else payload,
             headers=self.headers,
@@ -105,4 +106,3 @@ class TMDB(object):
             for key in response.keys():
                 if not hasattr(self, key) or not callable(getattr(self, key)):
                     setattr(self, key, response[key])
-

@@ -15,7 +15,6 @@ https://www.themoviedb.org/documentation/api/status-codes
 :copyright: (c) 2013-2018 by Celia Oakley.
 :license: GPLv3, see LICENSE for more details
 """
-
 __title__ = 'tmdbsimple'
 __version__ = '2.1.0'
 __author__ = 'Celia Oakley'
@@ -39,3 +38,4 @@ from .tv import TV, TV_Seasons, TV_Episodes, Networks
 
 API_KEY = os.environ.get('TMDB_API_KEY', None)
 API_VERSION = '3'
+SESSION = None
